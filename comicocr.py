@@ -23,7 +23,7 @@ def scan_image(img) -> Iterable:
          
         cropped = im2[y:y + h, x:x + w]
          
-        yield str(TextBlob(pytesseract.image_to_string(cropped).lower()).correct())
+        yield str(TextBlob("".join([c if ord(c) < 128 else "" for c in pytesseract.image_to_string(cropped)]).strip().lower()).correct())
 
 def main():
     parser = argparse.ArgumentParser(description='Comic OCR processor')
