@@ -45,55 +45,41 @@ def process(path):
     comic.raise_for_status()
     soup = BeautifulSoup(comic.content, 'html.parser')
     image = soup.find(id='cc-comic')
-    if not os.path.exists(BASEPATH+path+"/title.txt"):
-        with open(BASEPATH+path+"/title.txt", "w") as file:
-            alt = image.get("title")
-            file.write(alt)
+    with open(BASEPATH+path+"/title.txt", "w") as file:
+        alt = image.get("title")
+        file.write(alt)
+        file.close()
+
+    logging.info("Image for " + path + " doesn't exist, downloading")
+    img = requests.get(image.get("src"))
+    img.raise_for_status()
+    with open(BASEPATH+path+"/image", "wb") as file:
+        file.write(img.content)
+        file.close()
+
+    bonus_path = soup.find(id="aftercomic").findChildren()[0].get("src")
+    bonus = requests.get(bonus_path)
+    if bonus.status_code == 404:
+        open(BASEPATH+path+"/nobonus", "a").close()
+    else:
+        bonus.raise_for_status()
+        with open(BASEPATH+path+"/bonus", "wb") as file:
+            file.write(bonus.content)
             file.close()
+
+    logging.info("Scanning image " + path)
+    imagetype = magic.from_buffer(open(BASEPATH+path+"/image", "rb").read(2048), mime=True)
+    if imagetype == "image/gif":
+        logging.info("Image for " + path + " is a GIF, converting...")
+        cap = VideoCapture(BASEPATH+path+"/image")
+        ret, image = cap.read()
+        cap.release()
     else:
-        logging.info("Skipping title text for " + path)
+        image = imread(BASEPATH+path+"/image")
+    with open(BASEPATH+path+"/image.txt", "w") as file:
+        file.writelines(comicocr.scan_image(image))
 
-    if not os.path.exists(BASEPATH+path+"/image"):
-        logging.info("Image for " + path + " doesn't exist, downloading")
-        img = requests.get(image.get("src"))
-        img.raise_for_status()
-        with open(BASEPATH+path+"/image", "wb") as file:
-            file.write(img.content)
-            file.close()
-    else:
-        logging.info("Image already exists for " + path)
-
-    if not os.path.exists(BASEPATH+path+"/bonus") and not os.path.exists(BASEPATH+path+"/nobonus"):
-        bonus_path = soup.find(id="aftercomic").findChildren()[0].get("src")
-        bonus = requests.get(bonus_path)
-        if bonus.status_code == 404:
-            open(BASEPATH+path+"/nobonus", "a").close()
-        else:
-            bonus.raise_for_status()
-            with open(BASEPATH+path+"/bonus", "wb") as file:
-                file.write(bonus.content)
-                file.close()
-    else:
-        logging.info("Skipping bonus since it already exists or no bonus was found for " + path)
-
-
-
-    if not os.path.exists(BASEPATH+path+"/image.txt"):
-        logging.info("Scanning image " + path)
-        imagetype = magic.from_buffer(open(BASEPATH+path+"/image", "rb").read(2048), mime=True)
-        if imagetype == "image/gif":
-            logging.info("Image for " + path + " is a GIF, converting...")
-            cap = VideoCapture(BASEPATH+path+"/image")
-            ret, image = cap.read()
-            cap.release()
-        else:
-            image = imread(BASEPATH+path+"/image")
-        with open(BASEPATH+path+"/image.txt", "w") as file:
-            file.writelines(comicocr.scan_image(image))
-    else:
-        logging.info("Skipping image " + path)
-
-    if not os.path.exists(BASEPATH+path+"/bonus.txt") and not os.path.exists(BASEPATH+path+"/nobonus"):
+    if not os.path.exists(BASEPATH+path+"/nobonus"):
         imagetype = magic.from_buffer(open(BASEPATH+path+"/bonus", "rb").read(2048), mime=True)
         if imagetype == "image/gif":
             logging.info("Bonus for " + path + " is a GIF, converting...")
