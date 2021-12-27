@@ -4,7 +4,7 @@ import argparse
 import cv2
 from textblob import TextBlob
 
-def scanImage(img) -> Iterable:
+def scan_image(img) -> Iterable:
     # https://www.geeksforgeeks.org/text-detection-and-extraction-using-opencv-and-ocr
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
      
@@ -23,7 +23,7 @@ def scanImage(img) -> Iterable:
          
         cropped = im2[y:y + h, x:x + w]
          
-        yield TextBlob(pytesseract.image_to_string(cropped).lower()).correct()
+        yield str(TextBlob(pytesseract.image_to_string(cropped).lower()).correct())
 
 def main():
     parser = argparse.ArgumentParser(description='Comic OCR processor')
