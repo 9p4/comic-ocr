@@ -5,6 +5,7 @@ import os
 import logging
 from cv2 import imread, VideoCapture
 import magic
+from tqdm import tqdm
 
 BASEPATH = "output/smbc-comics.com/"
 
@@ -20,11 +21,14 @@ def main():
             paths.append(item.get('value'))
             logging.debug("Adding item " + data)
 
+    length = len(paths)
+
     if not os.path.exists(BASEPATH):
         logging.info("Base path " + BASEPATH + " does not exist, creating")
         os.makedirs(BASEPATH)
 
-    for path in paths:
+    for i in tqdm(range(length)):
+        path = paths[i]
         if not os.path.exists(BASEPATH+path):
             logging.info("Comic " + path + " does not exist, creating")
             os.makedirs(BASEPATH+path)
