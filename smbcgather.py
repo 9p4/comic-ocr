@@ -7,6 +7,8 @@ def main():
     comics = os.listdir(BASEDIR)
     data = []
     for comic in comics:
+        if not os.path.exists(BASEDIR+comic+"/completed"):
+            continue
         comicData = {}
         comicData['title'] = comic
         with open(BASEDIR+comic+"/image.txt", "r") as file:
