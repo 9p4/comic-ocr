@@ -21,14 +21,12 @@ def main():
         if data != "":
             paths.append(item.get('value'))
 
-    length = len(paths)
-
     if not os.path.exists(BASEPATH):
         logging.info("Base path " + BASEPATH + " does not exist, creating")
         os.makedirs(BASEPATH)
 
     # Being multiprocessing
-    N = mp.cpu_count()
+    N = int(mp.cpu_count()/1.5)
     with mp.Pool(processes = N) as p:
         p.map(process, [path for path in paths])
 
