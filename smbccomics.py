@@ -57,7 +57,7 @@ def process(path):
 
     bonus_path = soup.find(id="aftercomic").findChildren()[0].get("src")
     bonus = requests.get(bonus_path)
-    if bonus.status_code == 404:
+    if bonus.status_code != 200:
         open(BASEPATH+path+"/nobonus", "a").close()
     else:
         bonus.raise_for_status()
