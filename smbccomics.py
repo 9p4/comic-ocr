@@ -26,7 +26,7 @@ def main():
         os.makedirs(BASEPATH)
 
     # Being multiprocessing
-    N = int(mp.cpu_count()/1.5)
+    N = mp.cpu_count()*2
     with mp.Pool(processes = N) as p:
         p.map(process, [path for path in paths])
 
