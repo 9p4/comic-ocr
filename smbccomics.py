@@ -1,14 +1,44 @@
 import comicocr
+import json
+import html
 from bs4 import BeautifulSoup
 import requests
 import os
 import logging
 from cv2 import imread, VideoCapture
 import magic
-from tqdm import tqdm
+import re
 import multiprocessing as mp
 
 BASEPATH = "output/smbc-comics.com/"
+
+ocr = comicocr.ComicScanner()
+
+class NotAnImageError(Exception):
+    pass
+
+class DownloadError(Exception):
+    pass
+
+def image_open(path):
+    if not is_image(path):
+        raise NotAnImageError(path, "is not an image")
+    if is_gif(path):
+        logging.info(path + " is a GIF, converting...")
+        cap = VideoCapture(path)
+        _, image = cap.read()
+        cap.release()
+    else:
+        image = imread(path)
+    return image
+
+def is_gif(path):
+    with open(path, "rb") as file:
+        return magic.from_buffer(file.read(2048), mime=True) == "image/gif"
+
+def is_image(path):
+    with open(path, "rb") as file:
+        return magic.from_buffer(file.read(2048), mime=True)[0:5] == "image"
 
 def main():
     response = requests.get("https://www.smbc-comics.com/comic/archive")
@@ -26,73 +56,72 @@ def main():
         os.makedirs(BASEPATH)
 
     # Being multiprocessing
-    N = mp.cpu_count()*2
+    N = int(mp.cpu_count()/1.5)
     with mp.Pool(processes = N) as p:
         p.map(process, [path for path in paths])
 
 def process(path):
-    if not os.path.exists(BASEPATH+path):
-        logging.info("Comic " + path + " does not exist, creating")
-        os.makedirs(BASEPATH+path)
-
     if os.path.exists(BASEPATH+path+"/completed"):
         logging.info("Skipping " + path)
         return
 
+    if not os.path.exists(BASEPATH+path):
+        logging.info("Comic " + path + " does not exist, creating")
+        os.makedirs(BASEPATH+path)
+
+    comic_data = {'url': "https://www.smbc-comics.com/"+path}
+
     comic = requests.get("https://smbc-comics.com/" + path)
     comic.raise_for_status()
-    soup = BeautifulSoup(comic.content, 'html.parser')
-    image = soup.find(id='cc-comic')
-    with open(BASEPATH+path+"/title.txt", "w") as file:
-        alt = image.get("title")
-        file.write(alt)
-        file.close()
 
-    logging.info("Image for " + path + " doesn't exist, downloading")
-    img = requests.get(image.get("src"))
-    img.raise_for_status()
-    with open(BASEPATH+path+"/image", "wb") as file:
-        file.write(img.content)
-        file.close()
+    # Get important comic info
+    image_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+\.(?:gif|png)', comic.text)))[0]
+    bonus_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+(?:after)\.(?:gif|png)', comic.text)))[0]
+    title = html.unescape(list(set(re.findall(r'title="(.*)" src', comic.text)))[0])
+    comic_data['imageURL'] = image_url
+    comic_data['bonusURL'] = bonus_url
+    comic_data['title'] = title
 
-    bonus_path = soup.find(id="aftercomic").findChildren()[0].get("src")
-    bonus = requests.get(bonus_path)
-    if bonus.status_code != 200:
-        open(BASEPATH+path+"/nobonus", "a").close()
-    else:
-        bonus.raise_for_status()
-        with open(BASEPATH+path+"/bonus", "wb") as file:
-            file.write(bonus.content)
-            file.close()
+    # Download images if they do not exist
+    if not os.path.exists(BASEPATH+path+"/image"):
+        image_response = requests.get(image_url)
+        if image_response.status_code != 200:
+            logging.error("Got response code " + str(image_response.status_code) + ", expected 200")
+            raise DownloadError(image_url)
+        with open(BASEPATH+path+"/image", "rb") as image_file:
+            image_file.write(image_response.content)
 
+    if not os.path.exists(BASEPATH+path+"/bonus") and not os.path.exists(BASEPATH+path+"/nobonus"):
+        try:
+            bonus_response = requests.get(bonus_url)
+            if bonus_response.status_code != 200:
+                logging.error("Got response code " + str(bonus_response.status_code) + ", expected 200")
+                raise DownloadError(bonus_url)
+            with open(BASEPATH+path+"/bonus", "rb") as bonus_file:
+                bonus_file.write(bonus_response.content)
+        except NotAnImageError:
+            logging.warn("Skipping bonus for " + path)
+            open(BASEPATH+path+"/nobonus", "a").close()
+
+    # Scan images
     logging.info("Scanning image " + path)
-    imagetype = magic.from_buffer(open(BASEPATH+path+"/image", "rb").read(2048), mime=True)
-    if imagetype == "image/gif":
-        logging.info("Image for " + path + " is a GIF, converting...")
-        cap = VideoCapture(BASEPATH+path+"/image")
-        ret, image = cap.read()
-        cap.release()
-    else:
-        image = imread(BASEPATH+path+"/image")
-    with open(BASEPATH+path+"/image.txt", "w") as file:
-        file.writelines(comicocr.scan_image(image))
+    image = image_open(BASEPATH+path+"/image")
+    comic_data['text'] = re.sub('\s+',' ', " ".join(ocr.scan_image(image))) # Scan image, turn result into string, and clean up
 
     if not os.path.exists(BASEPATH+path+"/nobonus"):
-        imagetype = magic.from_buffer(open(BASEPATH+path+"/bonus", "rb").read(2048), mime=True)
-        if imagetype == "image/gif":
-            logging.info("Bonus for " + path + " is a GIF, converting...")
-            cap = VideoCapture(BASEPATH+path+"/bonus")
-            ret, image = cap.read()
-            cap.release()
-        else:
-            image = imread(BASEPATH+path+"/bonus")
-        with open(BASEPATH+path+"/bonus.txt", "w") as file:
-            file.writelines(comicocr.scan_image(image))
+        bonus_image = image_open(BASEPATH+path+"/bonus")
+        comic_data['bonusText'] = re.sub('\s+',' ', " ".join(ocr.scan_image(bonus_image)))
     else:
         logging.info("Skipping bonus " + path)
+        comic_data['bonusText'] = ""
 
+    with open(BASEPATH+path+"/metadata.json", "w") as metadata_file:
+        metadata_file.write(json.dumps(comic_data))
+
+    # Mark as comepleted
     open(BASEPATH+path+"/completed", "a").close()
-
+    logging.info("Completed " + path)
+    
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     main()

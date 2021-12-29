@@ -9,21 +9,8 @@ def main():
     for comic in comics:
         if not os.path.exists(BASEDIR+comic+"/completed"):
             continue
-        comicData = {}
-        comicData['title'] = comic
-        with open(BASEDIR+comic+"/image.txt", "r") as file:
-            comicData['comic'] = file.read().replace("\n", " ").replace("\x0c", "")
-            file.close()
-        if os.path.exists(BASEDIR+comic+"/bonus.txt"):
-            with open(BASEDIR+comic+"/bonus.txt", "r") as file:
-                comicData['bonus'] = file.read().replace("\n", " ").replace("\x0c", "")
-                file.close()
-        else:
-            comicData['bonus'] = ""
-        with open(BASEDIR+comic+"/title.txt", "r") as file:
-            comicData['alt'] = file.read()
-            file.close()
-        data.append(comicData)
+        with open(BASEDIR+comic+"/metadata.json", "r") as metadata_file:
+            data.append(json.loads(metadata_file.read()))
 
     with open("output.js", "w") as file:
         file.write("const list=")

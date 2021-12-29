@@ -152,3 +152,5 @@ cython_debug/
 #.idea/
 
 output
+
+frozen_east_text_detection.pb
