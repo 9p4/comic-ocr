@@ -65,6 +65,8 @@ def process(path):
         logging.info("Skipping " + path)
         return
 
+    logging.info("Starting " + path)
+
     if not os.path.exists(BASEPATH+path):
         logging.info("Comic " + path + " does not exist, creating")
         os.makedirs(BASEPATH+path)
@@ -75,9 +77,10 @@ def process(path):
     comic.raise_for_status()
 
     # Get important comic info
-    image_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+\.(?:gif|png)', comic.text)))[0]
+    panels = list(dict.fromkeys(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/.*?\.(?:gif|png)', comic.text)))
+    image_url = panels[0]
     try:
-        bonus_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+(?:after)\.(?:gif|png)', comic.text)))[0]
+        bonus_url = panels[1]
         comic_data['bonusURL'] = bonus_url
     except IndexError:
         logging.warning("Could not find bonus for " + path)
