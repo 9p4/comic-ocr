@@ -96,7 +96,7 @@ def process(path):
         if image_response.status_code != 200:
             logging.error("Got response code " + str(image_response.status_code) + ", expected 200")
             raise DownloadError(image_url)
-        with open(BASEPATH+path+"/image", "rb") as image_file:
+        with open(BASEPATH+path+"/image", "wb") as image_file:
             image_file.write(image_response.content)
 
     if not os.path.exists(BASEPATH+path+"/bonus") and not os.path.exists(BASEPATH+path+"/nobonus"):
@@ -105,7 +105,7 @@ def process(path):
             if bonus_response.status_code != 200:
                 logging.error("Got response code " + str(bonus_response.status_code) + ", expected 200")
                 raise DownloadError(bonus_url)
-            with open(BASEPATH+path+"/bonus", "rb") as bonus_file:
+            with open(BASEPATH+path+"/bonus", "wb") as bonus_file:
                 bonus_file.write(bonus_response.content)
         except NotAnImageError:
             logging.warn("Skipping bonus for " + path)
