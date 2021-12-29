@@ -77,7 +77,7 @@ def process(path):
     comic.raise_for_status()
 
     # Get important comic info
-    panels = list(dict.fromkeys(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/.*?\.(?:gif|png)', comic.text)))
+    panels = list(dict.fromkeys(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/.*?\.(?:gif|png|jpg)', comic.text)))
     image_url = panels[0]
     try:
         bonus_url = panels[1]
