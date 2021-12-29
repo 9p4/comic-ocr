@@ -76,10 +76,15 @@ def process(path):
 
     # Get important comic info
     image_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+\.(?:gif|png)', comic.text)))[0]
-    bonus_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+(?:after)\.(?:gif|png)', comic.text)))[0]
+    try:
+        bonus_url = list(set(re.findall(r'https\:\/\/www\.smbc-comics\.com\/comics\/[0-9\-]+(?:after)\.(?:gif|png)', comic.text)))[0]
+        comic_data['bonusURL'] = bonus_url
+    except IndexError:
+        logging.warning("Could not find bonus for " + path)
+        open(BASEPATH+path+"/nobonus", "a").close()
+        comic_data['bonusURL'] = ""
     title = html.unescape(list(set(re.findall(r'title="(.*)" src', comic.text)))[0])
     comic_data['imageURL'] = image_url
-    comic_data['bonusURL'] = bonus_url
     comic_data['title'] = title
 
     # Download images if they do not exist
