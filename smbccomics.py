@@ -108,7 +108,7 @@ def process(path):
             with open(BASEPATH+path+"/bonus", "wb") as bonus_file:
                 bonus_file.write(bonus_response.content)
         except NotAnImageError:
-            logging.warn("Skipping bonus for " + path)
+            logging.warning("Skipping bonus for " + path)
             open(BASEPATH+path+"/nobonus", "a").close()
 
     # Scan images
@@ -117,8 +117,14 @@ def process(path):
     comic_data['text'] = re.sub('\s+',' ', " ".join(ocr.scan_image(image))) # Scan image, turn result into string, and clean up
 
     if not os.path.exists(BASEPATH+path+"/nobonus"):
-        bonus_image = image_open(BASEPATH+path+"/bonus")
-        comic_data['bonusText'] = re.sub('\s+',' ', " ".join(ocr.scan_image(bonus_image)))
+        try:
+            bonus_image = image_open(BASEPATH+path+"/bonus")
+            comic_data['bonusText'] = re.sub('\s+',' ', " ".join(ocr.scan_image(bonus_image)))
+        except NotAnImageError:
+            logging.warn("Downloaded file is not an image in " + path)
+            open(BASEPATH+path+"/nobonus", "a").close()
+            logging.info("Skipping bonus " + path)
+            comic_data['bonusText'] = ""
     else:
         logging.info("Skipping bonus " + path)
         comic_data['bonusText'] = ""
