@@ -12,11 +12,10 @@ def main():
         with open(BASEDIR+comic+"/metadata.json", "r") as metadata_file:
             data.append(json.loads(metadata_file.read()))
 
-    with open("output.js", "w") as file:
+    with open("data.js", "w") as file:
         file.write("const list=")
         file.write(json.dumps(data))
         file.write(";")
-        file.close()
 
 if __name__ == "__main__":
     main()

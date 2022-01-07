@@ -86,8 +86,13 @@ def process(path):
         logging.warning("Could not find bonus for " + path)
         open(BASEPATH+path+"/nobonus", "a").close()
         comic_data['bonusURL'] = ""
-    title = html.unescape(list(set(re.findall(r'title="(.*)" src', comic.text)))[0])
+
     comic_data['imageURL'] = image_url
+    comic_soup = BeautifulSoup(comic.content, 'html.parser')
+    title = "no title detected"
+    for img in comic_soup.find_all("img"):
+        if img.get("src") == panels[0]:
+            title = img.get("title")
     comic_data['title'] = title
 
     # Download images if they do not exist
